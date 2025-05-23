@@ -1,0 +1,313 @@
+ROUTINE sample
+
+test1
+	// 権限マスタに現在何件のルーチンが登録されているか表示してください。
+	Set rountineCount = 0
+	Set rountineString = ""
+	For {
+		Set rountineString = $ORDER(^MKEN1(rountineString)) 
+		Quit:rountineString=""
+		Set rountineCount = rountineCount + 1
+	}
+	Write "Total Count",rountineCount, !
+	Quit
+	
+test2
+	Set routineID = "ABCNS0151"
+	If '$DATA(^MKEN1(routineID)){
+		Write "Rountine does not exist", !
+		Quit
+	}
+	Set record = ^MKEN1(routineID)
+	Set groupStr = $PIECE(record,$CHAR(22),1)
+	Set updatedDate = $PIECE(record,$CHAR(22),2)
+	Set RegisteredDate = $PIECE(record,$CHAR(22),3)
+	
+	Write "routineID",routineID, "groupID",groupStr, "Updated Date",updatedDate, "Registered Date", RegisteredDate !
+	Quit
+
+test3
+	Set routineStr = ""
+	For {
+		Set routineStr = $ORDER(^MKEN1(routineStr))
+		If $EXTRACT(routineStr) = "D"{
+			Write "Routine Start With D ->",  routineStr, !
+		}
+		Quit:routineStr=""
+	}
+	Quit
+
+test4
+	Set routineStr = ""
+	For {
+		Set routineStr = $ORDER(^MKEN1(routineStr))
+		If $EXTRACT(routineStr) = "D"{
+			Write "Routine Start With D ->",  routineStr, !
+		}
+		Quit:routineStr=""
+	}
+	Quit
+
+test5
+	Set routineID = ""
+	Set deleted = 0
+
+	For {
+		Set routineID = $ORDER(^MKEN1(routineID))
+		Quit:routineID=""
+		If $EXTRACT(routineID,1) = "w"{
+			Kill ^MKEN1(routineID)
+			Write "Delete Routine start with w -> ", routineID, !
+			Set deleted = 1
+		}
+	}
+	If 'deleted  Write "No routine start with w", !
+	Quit
+
+test6 
+	Set rId = "KEIW0011"
+	Set rData = ^MKEN1(rId)
+	W "Routine ID: ", rData, !
+	If '$DATA(rData){
+		Write "Rountine does not exist", !
+		Quit
+	}
+	Set groupStr = $PIECE(rData,$CHAR(22),1)
+	W groupStr, !
+	For i = 1:1:$LENGTH(groupStr,"/") {
+		Set code = $PIECE(groupStr,"/",i)
+		Write "Group Code: ", code, !
+		If code = "" Quit
+        Set groupName = $LISTGET(^MDIC("職務グループ", code),1, "[Unknown]")
+        Write "Group Code: ", code, " → ", groupName, !
+	}
+	Quit
+
+test7
+	Set rId = "swAHS"
+	If '$DATA(^MKEN1(rId)){
+		Write "Rountine does not exist", !
+		Quit
+	}
+	Set record = ^MKEN1(rId)
+	Set groupStr = $PIECE(record,$CHAR(22),1)
+	Set updatedDate = $PIECE(record,$CHAR(22),2)
+	Set RegisteredDate = $PIECE(record,$CHAR(22),3)
+
+	Set FormattedUpdateDate = $EXTRACT(updatedDate,1,4)_"年"_$EXTRACT(updatedDate,5,6)_"月"_$EXTRACT(updatedDate,7,8)_"日"
+	Set FormattedRegisteredDate = $EXTRACT(RegisteredDate,1,4)_"年"_$EXTRACT(RegisteredDate,5,6)_"月"_$EXTRACT(RegisteredDate,7,8)_"日"
+	Write "Updated Date ->", FormattedUpdateDate, !
+	Write "Registered Date ->", FormattedRegisteredDate, !
+	Quit
+
+test8
+	Set rId  = "INQWMS0030"
+	If '$DATA(^MKEN1(rId)){
+		Write "Rountine does not exist", !
+		Quit
+	}
+	Set record = ^MKEN1(rId)
+	Set groupStr = $PIECE(record,$CHAR(22),1)
+	Write groupStr, !
+	Set updatedDate = $PIECE(record,$CHAR(22),2)
+	Set registeredDate = $PIECE(record,$CHAR(22),3)
+
+	Set groupList = groupStr
+	Set found = 0
+	Set i = 1
+	For {
+		Set code = $PIECE(groupList,"/",i)
+		If code = "" Quit
+		If code	= "A"{
+			Set found = 1
+			Quit
+		}
+		Set i = i + 1
+	}
+	;if not found append A
+	If 'found{
+		If groupStr'=""{
+			Set groupList = groupStr_"/A"
+		}Else{
+			Set groupList = "A"
+		}
+	}
+	;get current date in YYYYMMDD format
+	Set currentDate = $ZDATE($HOROLOG,"YYYYMMDD")
+
+	;Reconstruct record
+	Set ^MKEN1(rId) = groupList_$CHAR(22)_currentDate_$CHAR(22)_registeredDate
+	Write "Routine ", rId, " updated successfully.", !
+	Write "Updated Value: ", $GET(^MKEN1("INQWMS0030")), !
+
+	Quit
+
+test9
+	Set rId = "MSTMZATUSHO"
+	If '$DATA(^MKEN1(rId)){
+		Write "Rountine does not exist", !
+		Quit
+	}
+	Set record = ^MKEN1(rId)
+	Set groupStr = $PIECE(record,$CHAR(22),1)
+	Set updatedDate = $PIECE(record,$CHAR(22),2)
+	Set registeredDate = $PIECE(record,$CHAR(22),3)
+
+	Set newGroupStr = ""
+	Set foundInvalid = 0
+
+	For i = 1:1:$LENGTH(groupStr,"/") {
+		Set code = $PIECE(groupStr,"/",i)
+		If code = "" Quit
+		If '$DATA(^MDIC("職務グループ", code)) {
+			Set foundInvalid = 1
+			Write "Invalid group code: ", code, !
+		} Else {
+			If newGroupStr'="" {
+				Set newGroupStr = newGroupStr_"/"_code
+			} Else {
+				Set newGroupStr = code
+			}
+		}
+	}
+
+	If foundInvalid {
+		Set ^MKEN1(rId) = newGroupStr_$CHAR(22)_updatedDate_$CHAR(22)_registeredDate
+		Write "Updated routine ", rId, " with valid group codes.", !
+		Write "Updated Data: ", $GET(^MKEN1(rId)), !
+	} Else {
+		Write "No invalid group codes found.", !
+	}
+	Quit
+test10
+	Read "Please enter a group code ", groupCode, !
+	If groupCode = "" {
+		Write "No group code entered. Exiting.", !
+		Quit
+	}
+
+	Set routineID = ""
+	Set found = 0
+
+	For {
+		Set routineID = $ORDER(^MKEN1(routineID))
+		Quit:routineID=""
+		Set record = ^MKEN1(routineID)
+		Set groupStr = $PIECE(record,$CHAR(22),1)
+
+		For i=1:1:$LENGTH(groupStr,"/") {
+			Set thisGroup = $PIECE(groupStr, "/",i)
+			If thisGroup = groupCode {
+				Write "Routine with permission for group ", groupCode, ": ", routineID, !
+				Set found =1
+			}
+		}
+		If groupStr = groupCode {
+			Write "Routine ID: ", routineID, " Group Code: ", groupStr, !
+			Set found = 1
+		}
+	}
+	If 'found {
+		Write "No routine found with group code: ", groupCode, !
+	}
+	Quit
+
+test11
+	Set rId = "KEIW0011"
+	Set updatedDate = $ZDATE($HOROLOG,8)
+	Set groupStr = "Q,R,S,T,U,W"
+
+	For i = 1:1:$LENGTH(groupStr,",") {
+		Write "Group Code: ", $PIECE(groupStr,"/",i), !
+		Set groupCode = $PIECE(groupStr,"/",i)
+		If groupCode = "" Quit
+		Set ^MKEN2KHAING(rId,"GRP",groupCode) = updatedDate
+		Write "Updated registered Group in MKEN2KHAING ID: ", rId, " Group Code: ", groupCode, !
+		Write "Updated Data: ", $GET(^MKEN2KHAING(rId,"GRP",groupCode)), !
+	}
+	Quit
+
+test12
+	Set routineID = ""
+	For {
+		Set routineID = $ORDER(^MKEN2KHAING(routineID))
+		Quit:routineID=""
+
+		; Count groups
+		Set groupCount = 0
+		Set groupCode = ""
+		For {
+			Set groupCode = $ORDER(^MKEN2KHAING(routineID, "GRP", groupCode))
+			Write groupCode, !
+			Quit:groupCode=""
+			Set groupCount = groupCount + 1
+		}
+
+		; Count employees
+		Set empCount = 0
+		Set empCode = ""
+		For {
+			Set empCode = $ORDER(^MKEN2KHAING(routineID, "SYA", empCode))
+			Quit:empCode=""
+			Set empCount = empCount + 1
+		}
+
+		Write "Routine: ", routineID, " → Groups: ", groupCount, ", Employees: ", empCount, !
+	}
+
+test13
+    Set routineID = "EIGWINQ0420"
+    Set found = 0
+    Set empCode = ""
+    For {
+        Set empCode = $ORDER(^MKEN2KHAING(routineID, "SYA", empCode))
+        Quit:empCode=""
+        Set empShortName = "[Unknown]"
+        If $DATA(^MSYA(empCode)) {
+            Set empShortName = $PIECE(^MSYA(empCode), $CHAR(22), 1)  ; <--- Use field 1!
+        }
+        Write "Employee Code: ", empCode, " → Name: ", empShortName, !
+        Set found = 1
+    }
+    If 'found {
+        Write "No employees with permission for ", routineID, " found.", !
+    }
+    Quit
+
+test14
+	Set emp = 3775
+	For i=1:1:30 {
+		Write i, ": ", $PIECE(^MSYA(emp), $CHAR(22), i), !
+	}
+
+
+SetupBankAcc
+	Set acc= 12345678
+	Set ^CheckBankAcc(acc,"balance") = 1000
+	Set ^SavingsBankAcc(acc,"balance") = 2000
+	IF '$DATA(^CheckBankAcc(acc)) Set ^NumberOfTransfer = 0
+	Quit
+
+BankTransfer
+	W "Current Check Bank Account balance: ", ^CheckBankAcc(acc,"balance"), !
+	Set transfer = 100
+	Do CToSAccountTransfer(acc,transfer)
+	Quit
+CToSAccountTransfer(acc,transfer)
+	Set checkBalance = $GET(^CheckBankAcc(acc,"balance"))
+	Set savingsBalance = $GET(^SavingsBankAcc(acc,"balance"))
+	Set transferCount = $GET(^NumberOfTransfer)
+
+	If checkBalance < transfer {
+		Write "Insufficient funds in Check Bank Account", !
+		Quit
+	}
+
+	Set ^CheckBankAcc(acc,"balance") = checkBalance - transfer
+	Set ^SavingsBankAcc(acc,"balance") = savingsBalance + transfer
+	Set ^NumberOfTransfer = transferCount + 1
+
+	Write "Transfer successful. New Check Bank Account balance: ", ^CheckBankAcc(acc,"balance"), !
+	Write "New Savings Bank Account balance: ", ^SavingsBankAcc(acc,"balance"), !
+	Write "Total number of transfers: ", ^NumberOfTransfer, !
+	Quit

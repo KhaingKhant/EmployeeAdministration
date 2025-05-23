@@ -1,0 +1,393 @@
+ROUTINE wwKTEST1ABEL
+
+A1 ; Count and display number of routines in ^MKEN1AUNGABEL
+    Write "1. 権限マスタに現在何件のルーチンが登録されているか表示してください。", !
+   	Set rountineCount = 0
+	Set rountineString = ""
+	For {
+		Set rountineString = $ORDER(^MKEN1AUNG(rountineString)) 
+		Quit:rountineString=""
+		Set rountineCount = rountineCount + 1
+	}
+	Write "Total Count",rountineCount, !
+	Quit
+
+
+A2 ; Display the data for ABCNS0151 in ^MKEN1AUNG, separated by semicolons
+    Write "2. 権限マスタより、「ABCNS0151」のデータを取得し、セミコロン(;)区切りで表示してください。", !
+    
+    Set routineID = "ABCNS0151"
+    If '$DATA(^MKEN1AUNG(routineID)) {
+        Write "Routine not found!", !
+        Quit
+    }
+    Set record = ^MKEN1AUNG(routineID)
+    Set groupStr   = $PIECE(record, $CHAR(22), 1)
+    Set updateDate = $PIECE(record, $CHAR(22), 2)
+    Set regDate    = $PIECE(record, $CHAR(22), 3)
+    Write routineID, ";", groupStr, ";", updateDate, ";", regDate, !
+    Quit
+
+A3 ; Display all routine IDs in ^MKEN1AUNG that start with "D"
+    Write "3. ルーチンIDの先頭がDであるものを全て出力してください。", !
+   	Set routineStr = ""
+	For {
+		Set routineStr = $ORDER(^MKEN1AUNG(routineStr))
+		If $EXTRACT(routineStr,1) = "D"{
+			W "Routine Start With D ->",  routineStr, !
+		}
+		Quit:routineStr=""
+	}
+	Quit
+
+A4 ; Delete all routine IDs in ^MKEN1AUNG that start with "w"
+
+    Write "4. 権限マスタから先頭が「w」であるものを削除してください。", !
+	Set routineID = ""
+	Set deleted = 0
+
+	For {
+		Set routineID = $ORDER(^MKEN1AUNG(routineID))
+		Quit:routineID=""
+		If $EXTRACT(routineID,1) = "w"{
+			Kill ^MKEN1AUNG(routineID)
+			Write "Delete Routine start with w -> ", routineID, !
+			Set deleted = 1
+		}
+	}
+	If 'deleted  Write "No routine start with w", !
+	Quit
+
+
+A5 ;Display all groups with access to KEIW0011 from ^MKEN1AUNGABEL
+    Write "5 権限マスタより、「KEIW0011」のデータを取得し、そのルーチンの権限を持っているグループ名を全て表示してください。", !
+    Set rId = "KEIW0011"
+	Set rData = ^MKEN1AUNG(rId)
+	Set groupStr = $PIECE(rData,$CHAR(22),1)
+
+	For i = 1:1:$LENGTH(groupStr,"/") {
+		Set code = $PIECE(groupStr,"/",i)
+		If code = "" Quit
+        Set groupName = $LISTGET(^MDIC("職務グループ", code),1, "[Unknown]")
+        Write "Group Code: ", code, " → ", groupName, !
+	}
+	Quit
+
+A6; Display update and registration dates for swAHS in Japanese date format
+    Write "6.権限マスタより、「swAHS」のデータを取得し、更新日と登録日をYYYY年MM月DD日として表示してください。", !
+    Set routineID = "swAHS"
+    If '$Data(^MKEN1AUNG(routineID)) {
+        Write "Routine not found!", !
+        Quit
+    }
+
+    Set record = ^MKEN1AUNG(routineID)
+    Set updateDate = $Piece(record, $Char(22), 2)
+    Set regDate    = $Piece(record, $Char(22), 3)
+
+    Set updateYear  = $Extract(updateDate, 1, 4)
+    Set updateMonth = $Extract(updateDate, 5, 6)
+    Set updateDay   = $Extract(updateDate, 7, 8)
+
+    Set regYear  = $Extract(regDate, 1, 4)
+    Set regMonth = $Extract(regDate, 5, 6)
+    Set regDay   = $Extract(regDate, 7, 8)
+
+    Write "更新日: ", updateYear, "年", updateMonth, "月", updateDay, "日", !
+    Write "登録日: ", regYear, "年", regMonth, "月", regDay, "日", !
+    Quit
+
+A7 ; Add group 'A' to INQWMS0030 and update date
+
+    Write "7. 権限マスタより、「INQWMS0030」のデータを取得し、管理グループに「A」を追加して更新してください。（更新日も更新）", !
+
+   Set rId  = "INQWMS0030"
+	If '$DATA(^MKEN1AUNG(rId)){
+		Write "Rountine does not exist", !
+		Quit
+	}
+	Set record = ^MKEN1AUNG(rId)
+	Set groupStr = $PIECE(record,$CHAR(22),1)
+	W groupStr, !
+	Set updatedDate = $PIECE(record,$CHAR(22),2)
+	Set registeredDate = $PIECE(record,$CHAR(22),3)
+
+	Set groupList = groupStr
+	Set found = 0
+	Set i = 1
+	For {
+		Set code = $PIECE(groupList,"/",i)
+		If code = "" Quit
+		If code	= "A"{
+			Set found = 1
+			Quit
+		}
+		Set i = i + 1
+	}
+	If 'found{
+		If groupStr'=""{
+			Set groupList = groupStr_"/A"
+		}else{
+			Set groupList = "A"
+		}
+	}
+	Set currentDate = $ZDATE($H,8)
+    W "Current Date: ", currentDate, !
+
+	Set ^MKEN1AUNG(rId) = groupList_$CHAR(22)_currentDate_$CHAR(22)_registeredDate
+	Write "Routine ", rId, " updated successfully.", !
+	WRITE "Updated Data: ", $GET(^MKEN1AUNG("INQWMS0030")), !
+
+	Quit
+
+
+A8 ; Remove invalid group codes from MSTMZATUSHO and update if necessary
+
+    Write "8. 権限マスタより、「MSTMZATUSHO」のデータを取得し、職務グループマスタに存在しないグループコードがあった場合、削除して更新してください。", !
+
+   Set rId = "MSTMZATUSHO"
+	If '$DATA(^MKEN1AUNG(rId)){
+		Write "Rountine does not exist", !
+		Quit
+	}
+	Set record = ^MKEN1AUNG(rId)
+	Set groupStr = $PIECE(record,$CHAR(22),1)
+	Set updatedDate = $PIECE(record,$CHAR(22),2)
+	Set registeredDate = $PIECE(record,$CHAR(22),3)
+
+	Set newGroupStr = ""
+	Set foundInvalid = 0
+
+	For i = 1:1:$LENGTH(groupStr,"/") {
+		Set code = $PIECE(groupStr,"/",i)
+		If code = "" Quit
+		If '$DATA(^MDIC("職務グループ", code)) {
+			Set foundInvalid = 1
+			Write "Invalid group code: ", code, !
+		} Else {
+			If newGroupStr'="" {
+				Set newGroupStr = newGroupStr_"/"_code
+			} Else {
+				Set newGroupStr = code
+			}
+		}
+	}
+
+	If foundInvalid {
+		Set ^MKEN1AUNG(rId) = newGroupStr_$CHAR(22)_updatedDate_$CHAR(22)_registeredDate
+		Write "Updated routine ", rId, " with valid group codes.", !
+        Write "Updated Data: ", $GET(^MKEN1AUNG("MSTMZATUSHO")), !
+	} Else {
+		Write "No invalid group codes found.", !
+	}
+	Quit
+
+
+A9 ; Display all routines with access for an input group code
+
+    Write "9. グループコードを入力すると、そのグループに権限のあるルーチンを全て表示するようにしてください。", !
+
+    Read "グループコードを入力してください (Enter group code): ", groupCode, !
+	If groupCode = "" {
+		Write "No group code entered. Exiting.", !
+		Quit
+	}
+
+	Set routineID = ""
+	Set found = 0
+
+	For {
+		Set routineID = $ORDER(^MKEN1AUNG(routineID))
+		Quit:routineID=""
+		Set record = ^MKEN1AUNG(routineID)
+		Set groupStr = $PIECE(record,$CHAR(22),1)
+
+		For i=1:1:$LENGTH(groupStr,"/") {
+			Set thisGroup = $PIECE(groupStr, "/",i)
+			If thisGroup = groupCode {
+				Write "Routine with permission for group ", groupCode, ": ", routineID, !
+				Set found =1
+			}
+		}
+		If groupStr = groupCode {
+			Write "Routine ID: ", routineID, " Group Code: ", groupStr, !
+			Set found = 1
+		}
+	}
+	If 'found {
+		Write "No routine found with group code: ", groupCode, !
+	}
+	Quit
+
+A10 ; Register groups Q-R-S-T-U-W to KEIW0011 in ^MKEN2AUNG
+    Write "10. 「KEIW0011」のグループ権限レコードに「Q、R、S、T、U、W」のグループを登録してください。", !   
+    Set rId = "KEIW0011"
+	Set updatedDate = $ZDATE($H,8)
+	Set groupStr = "Q,R,S,T,U,W"
+
+	For i = 1:1:$LENGTH(groupStr,",") {
+		Set groupCode = $PIECE(groupStr,"/",i)
+		If groupCode = "" Quit
+        W "Group Code: ", $PIECE(groupStr,"/",i), !
+		Set ^MKEN2AUNG(rId,"GRP",groupCode) = updatedDate
+		Write "Updated registered Group in MKEN2KHAING ID: ", rId, " Group Code: ", groupCode, !
+		Write "Updated Data: ", $GET(^MKEN2AUNG(rId,"GRP",groupCode)), !
+	}
+	Quit
+
+A11 ; Count and display routines with employee and group permissions
+    Write "11. 権限マスタに登録されているルーチンが社員権限とグループ権限それぞれ何件ずつ登録されているか全て表示してください。", !
+    New routineID, hasSya, hasGrp, syaCount, grpCount
+    Set syaCount = 0, grpCount = 0, routineID = ""
+    For {
+        Set routineID = $Order(^MKEN2AUNG(routineID)) Quit:routineID=""   
+        Set hasSya = $Data(^MKEN2AUNG(routineID,"SYA"))
+        Set hasGrp = $Data(^MKEN2AUNG(routineID,"GRP"))
+        If hasSya Set syaCount = syaCount + 1
+        If hasGrp Set grpCount = grpCount + 1
+    }
+    Write "Routines with employee permissions (SYA): ", syaCount, !
+    Write "Routines with group permissions (GRP): ", grpCount, !
+    Quit
+
+A12 ; Display all employee names with permission for "EIGWINQ0420"
+    Write "12. 権限マスタの社員権限レコードより、「EIGWINQ0420」のデータを取得し、権限を持っている社員の名前[P3漢字社員略名]を全て表示してください。", !
+
+    Set routineID = "EIGWINQ0420"
+    Set found = 0
+    Set empCode = ""
+    For {
+        Set empCode = $ORDER(^MKEN2AUNG(routineID, "SYA", empCode))
+        Quit:empCode=""
+        Set empShortName = "[Unknown]"
+        If $DATA(^MSYA(empCode)) {
+            Set empShortName = $PIECE(^MSYA(empCode), $CHAR(22), 1)  ; <--- Use field 1!
+        }
+        Write "Employee Code: ", empCode, " → Name: ", empShortName, !
+        Set found = 1
+    }
+    If 'found {
+        Write "No employees with permission for ", routineID, " found.", !
+    }
+    Quit
+
+A13
+    Write "13. 社員権限レコードより、2018年5月31日以前に登録された社員がいるルーチンを全て表示してください", !
+    Set routineID = ""
+    Set found = 0
+    For {
+        Set routineID = $ORDER(^MKEN2AUNG(routineID))
+        Quit:routineID=""
+        Set empCode = ""
+        For {
+            Set empCode = $ORDER(^MKEN2AUNG(routineID, "SYA", empCode))
+            Quit:empCode=""
+            Set regDate = $GET(^MKEN2AUNG(routineID, "SYA", empCode))
+            If regDate'="", regDate?8N, regDate<=20180531 {
+                Write "Routine: ", routineID, "  Employee: ", empCode, "  Registered: ", regDate, !
+                Set found = 1
+                Quit 
+            }
+        }
+    }
+    If 'found Write "No employee registrations found before 2018/05/31.", !
+    Quit
+
+A14
+    Write "14. グループ権限マスタのみから、先頭がwであるものを削除してください。基本レコードは消さないでください.",!
+    Set routineID = ""
+    Set deleted = 0
+    For{
+        Set routineID = $ORDER(^MKEN2AUNG(routineID))
+        Quit:routineID=""  
+        If $EXTRACT(routineID, 1)="w" {
+            If $DATA(^MKEN2AUNG(routineID, "GRP")) {
+                Kill ^MKEN2AUNG(routineID, "GRP")
+                Write "Deleted group permissions for routine: ", routineID, !
+                Set deleted = deleted + 1
+            }
+        }
+    }
+    If 'deleted Write "No group permissions found for routines starting with 'w'.", !
+    Quit
+
+A15 ;
+    Write "「INQWMS0030」の社員権限マスタより、更新日が古い順に社員名を全て表示してください。更新日が同じ場合は社員番号の昇順に並べてください。", !
+    New empList, empCode, updateDate, empName, count, i, key
+
+    Set routineID = "INQWMS0030"
+    Set empCode = ""
+    Set count = 0
+
+    ; 1. Collect employee codes and their update dates
+    For {
+        Set empCode = $ORDER(^MKEN2AUNG(routineID, "SYA", empCode))
+        Quit:empCode=""
+        Set updateDate = $GET(^MKEN2AUNG(routineID, "SYA", empCode))
+        If updateDate="" Set updateDate = "99999999" ; fallback for missing date
+        Set empName = "[Unknown]"
+        If $DATA(^MSYA(empCode)) {
+            Set empName = $PIECE(^MSYA(empCode), $CHAR(22), 1)
+        }
+        ; Use updateDate and empCode as a composite key for sorting
+        Set key = updateDate_"-"_empCode
+        Set empList(key) = empName
+        Set count = count + 1
+    }
+
+    ; 2. Output sorted by updateDate, then empCode
+    If count=0 {
+        Write "No employees found for INQWMS0030.", !
+        Quit
+    }
+
+    Set key = ""
+    For {
+        Set key = $ORDER(empList(key))
+        Quit:key=""
+        Write empList(key), !
+    }
+    Quit
+
+A16 ; Display routines that have only group permissions and no employee permissions
+    Write "1権限マスタより、グループ権限しかもたないルーチンを表示してください。", !
+    Set routineID = ""
+    Set found = 0
+    For {
+        Set routineID = $ORDER(^MKEN2AUNG(routineID)) 
+        Quit:routineID="" 
+        Set hasGroup = 0
+        Set groupCode = $ORDER(^MKEN2AUNG(routineID, "GRP", ""))
+        If groupCode'="" Set hasGroup = 1
+
+        Set hasEmployee = 0
+        Set empCode = $ORDER(^MKEN2AUNG(routineID, "SYA", ""))
+        If empCode'="" Set hasEmployee = 1
+
+        If hasGroup, 'hasEmployee {
+            Write "Routine with group permissions only: ", routineID, !
+            Set found = 1
+        }
+    }
+    If 'found Write "No routines found with group permissions only.", !
+    Quit
+
+A17 ; Show all routines this employee can access (or say "No permissions")
+    Write "	社員番号を入力すると、権限のあるルーチンを全て表示するようにしてください。全く権限のない人は権限なしと表示してください。", !
+
+    Read "Employee number ", empCode, !
+    Set found = 0
+
+    Set routineID = ""
+    For {
+    Set routineID = $ORDER(^MKEN2AUNG(routineID)) 
+    Quit:routineID=""  
+        If $DATA(^MKEN2AUNG(routineID, "SYA", empCode)) {
+            Write "You have access to routine: ", routineID, !
+            Set found = 1
+        }
+    }
+    If 'found {
+        Write "No permissions found for employee number ", empCode, ".", !
+    }
+    Quit
