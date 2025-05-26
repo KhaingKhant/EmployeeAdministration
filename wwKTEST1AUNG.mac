@@ -1,4 +1,4 @@
-ROUTINE wwKTEST1ABEL
+ROUTINE wwKTEST1AUNG
 
 A1 ; Count and display number of routines in ^MKEN1AUNGABEL
     Write "1. 権限マスタに現在何件のルーチンが登録されているか表示してください。", !
